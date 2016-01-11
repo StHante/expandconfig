@@ -34,7 +34,11 @@ and finally
 
 ## "Language"
 
-Text parts with alternatives are enclosed by `[[` and `]]`, where multliple alternatives are separeted by `||`. In the text parts which are common in all desired output files, you can't have any `[[`, but `]]` should by fine (though I highly recommend not do this for readability).
+Text parts with alternatives are enclosed by `[[` and `]]`, where multliple alternatives are separeted by `||`. In the text parts which are common in all desired output files, you can't have any `[[`, and in the alternatives you can't have any `]]` or `||`. Every config file which is as whole matched by the regular expression
+
+    [^\[\[]*(\[\[([^(\]\])])*(||[^\]\]]*)*\]\])*[^\[\[]*
+
+should work fine. You can test it [here](http://regexr.com/3ci3r).
 
 ## Bugs?
 Everything works as intended at the moment.
