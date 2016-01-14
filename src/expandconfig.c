@@ -308,13 +308,82 @@ void alloc_next_stat(struct cfg_t* cfg) {
    return;
 }
 
-void init(struct cfg_t* cfg) {
-   // Read one character from the file
-   char character;
-   if (fscanf(cfg->fhandle, "%c", &character) < 1) {
-      // Successfully read everything
-      return;
+int read_character(struct cfg_t* cfg, char* character) {
+   return fscanf(cfg->fhandle, "%c", character); 
+}
+
+void read_character_err(struct cfg_t* cfg, char* character, char* err_msg) {
+   if (read_character(cfg, character) < 1) {
+      printf("ERROR: %s\n", err_msg);
+      exit(1);
    }
+
+   return;
+}
+
+#define read_character_suc(CFG, CHARACTER) \
+if (read_character(CFG, CHARACTER) < 1) {  \
+   return;                                  \
+}                                        
+
+void write_static(struct cfg_t* cfg, char character) {
+   // Check length of buffer and reallocate if it's too small
+   check_stat_len(cfg);
+   // Save character
+   cfg->stat[cfg->stat_no-1][cfg->stat_len[cfg->stat_no-1]] = character;
+   cfg->stat_len[cfg->stat_no-1]++;  
+   
+   return;
+}
+
+void write_dynamic(struct cfg_t* cfg, char character) {
+   // Check length of buffer and reallocate if it's too small   
+   check_dyn_len(cfg);
+   // Save character
+   cfg->dyn_len[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]++;
+   cfg->dyn[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1][cfg->dyn_len[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]-1]
+      = character;
+   
+   return;
+}
+
+void next_static_section(struct cfg_t* cfg) {
+   // Check lenght of buffer and reallocate if it's too small
+   check_stat_no(cfg);
+   cfg->stat_no ++;
+   // Allocate buffer
+   alloc_next_stat(cfg);
+}      
+
+void next_dynamic_alternative(struct cfg_t* cfg) {
+   // Check lenght of buffer and reallocate if it's too small   
+   check_dyn_alt_no(cfg);
+   cfg->dyn_alt_no[cfg->dyn_no-1]++;
+   // Allocate buffer   
+   alloc_next_dyn(cfg);
+   
+   return;
+}
+
+void next_dynamic_section(struct cfg_t* cfg) {
+   // Check lenght of buffer and reallocate if it's too small   
+   check_dyn_no(cfg); 
+   cfg->dyn_no++;
+   // Allocate buffer
+   alloc_next_dyn_alt(cfg);
+   // Check lenght of buffer and reallocate if it's too small   
+   check_dyn_alt_no(cfg);
+   cfg->dyn_alt_no[cfg->dyn_no-1]++;
+   // Allocate buffer
+   alloc_next_dyn(cfg);
+   
+   return;
+}
+
+void init(struct cfg_t* cfg) {
+   // Read one character from the file (success if EOF)
+   char character;
+   read_character_suc(cfg, &character);
    
    #ifdef DEBUG
    printf("%c: ", character);
@@ -334,10 +403,8 @@ void init(struct cfg_t* cfg) {
       #endif
       
       // Character is static
-      check_stat_len(cfg);
-      // Save character
-      cfg->stat[cfg->stat_no-1][cfg->stat_len[cfg->stat_no-1]] = character;
-      cfg->stat_len[cfg->stat_no-1]++;  
+      write_static(cfg, character);
+      
       init(cfg);
    }
       
@@ -345,12 +412,9 @@ void init(struct cfg_t* cfg) {
 }
 
 void have_bracket(struct cfg_t* cfg) {
-   // Read one character from the file
+   // Read one character from the file (success if EOF)
    char character;
-   if (fscanf(cfg->fhandle, "%c", &character) < 1) {
-      // Successfully read everything
-      return;
-   }
+   read_character_suc(cfg, &character)
    
    #ifdef DEBUG
    printf("%c: ", character);
@@ -363,12 +427,7 @@ void have_bracket(struct cfg_t* cfg) {
       #endif
       
       // We have found a new dynamic part
-      check_dyn_no(cfg); 
-      cfg->dyn_no++;
-      alloc_next_dyn_alt(cfg);
-      check_dyn_alt_no(cfg);
-      cfg->dyn_alt_no[cfg->dyn_no-1]++;
-      alloc_next_dyn(cfg);      
+      next_dynamic_section(cfg);
       
       in_alternative(cfg);
    }
@@ -378,13 +437,8 @@ void have_bracket(struct cfg_t* cfg) {
       #endif
       
       // Characters '[' and character are static
-      check_stat_len(cfg);
-      check_stat_len(cfg);
-      // Save characters
-      cfg->stat[cfg->stat_no-1][cfg->stat_len[cfg->stat_no-1]] = '[';
-      cfg->stat_len[cfg->stat_no-1]++;  
-      cfg->stat[cfg->stat_no-1][cfg->stat_len[cfg->stat_no-1]] = character;
-      cfg->stat_len[cfg->stat_no-1]++;  
+      write_static(cfg, '[');
+      write_static(cfg, character);
       
       init(cfg);
    }  
@@ -393,13 +447,9 @@ void have_bracket(struct cfg_t* cfg) {
 }
 
 void in_alternative(struct cfg_t* cfg) {
-   // Read one character from the file
+   // Read one character from the file (Error if EOF)
    char character;
-   if (fscanf(cfg->fhandle, "%c", &character) < 1) {
-      // Error
-      printf("ERROR: Unmatched [[\n");
-      exit(1);
-   }
+   read_character_err(cfg, &character, "Unmatched [[");
    
    #ifdef DEBUG
    printf("%c: ", character);
@@ -426,11 +476,7 @@ void in_alternative(struct cfg_t* cfg) {
       #endif
       
       // Character is dynamic
-      check_dyn_len(cfg);
-      // Save character
-      cfg->dyn_len[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]++;
-      cfg->dyn[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1][cfg->dyn_len[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]-1]
-         = character;
+      write_dynamic(cfg, character);
       
       in_alternative(cfg);
    }
@@ -440,13 +486,9 @@ void in_alternative(struct cfg_t* cfg) {
 
 
 void have_delimiter(struct cfg_t* cfg) {
-   // Read one character from the file
+   // Read one character from the file (Error if EOF)
    char character;
-   if (fscanf(cfg->fhandle, "%c", &character) < 1) {
-      // Error
-      printf("ERROR: Unmatched [[\n");
-      exit(1);
-   }
+   read_character_err(cfg, &character, "Unmatched [[");
    
    #ifdef DEBUG
    printf("%c: ", character);
@@ -459,9 +501,7 @@ void have_delimiter(struct cfg_t* cfg) {
       #endif
       
       // Next alternative
-      check_dyn_alt_no(cfg);
-      cfg->dyn_alt_no[cfg->dyn_no-1]++;
-      alloc_next_dyn(cfg);
+      next_dynamic_alternative(cfg);
       
       in_alternative(cfg);
    }
@@ -471,17 +511,9 @@ void have_delimiter(struct cfg_t* cfg) {
       #endif
       
       // Character '|' was normal text 
-      check_dyn_len(cfg);
-      // Save character
-      cfg->dyn_len[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]++;
-      cfg->dyn[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1][cfg->dyn_len[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]-1]
-         = '|';      
-      // Character char is dynamic
-      check_dyn_len(cfg);
-      // Save character
-      cfg->dyn_len[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]++;
-      cfg->dyn[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1][cfg->dyn_len[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]-1]
-         = character;
+      write_dynamic(cfg, '|');
+      // Character character is dynamic
+      write_dynamic(cfg, character);
       
       in_alternative(cfg);
    }  
@@ -489,16 +521,10 @@ void have_delimiter(struct cfg_t* cfg) {
    return;
 }
 
-
-
 void have_end(struct cfg_t* cfg) {
-   // Read one character from the file
+   // Read one character from the file (Error if EOF)
    char character;
-   if (fscanf(cfg->fhandle, "%c", &character) < 1) {
-      // Error
-      printf("ERROR: Unmatched ]]\n");
-      exit(1);
-   }
+   read_character_err(cfg, &character, "Unmatched ]]");
    
    #ifdef DEBUG
    printf("%c: ", character);
@@ -511,9 +537,7 @@ void have_end(struct cfg_t* cfg) {
       #endif
       
       // New static section
-      check_stat_no(cfg);
-      cfg->stat_no ++;
-      alloc_next_stat(cfg);
+      next_static_section(cfg);
       
       init(cfg);
    }
@@ -523,17 +547,9 @@ void have_end(struct cfg_t* cfg) {
       #endif
       
       // Character ']' was normal text
-      check_dyn_len(cfg);
-      // Save character
-      cfg->dyn_len[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]++;
-      cfg->dyn[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1][cfg->dyn_len[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]-1]
-         = ']';
-      // Character char is dynamic
-      check_dyn_len(cfg);
-      // Save character
-      cfg->dyn_len[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]++;
-      cfg->dyn[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1][cfg->dyn_len[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]-1]
-         = character;
+      write_dynamic(cfg, ']');
+      // Character character is dynamic
+      write_dynamic(cfg, character);
       
       in_alternative(cfg);
    }  
