@@ -1,5 +1,11 @@
 #include "expandconfig.h"
 
+#ifdef DEBUG
+#define DEBUG_MSG_STATES printf("%c: %s\n", character, __FUNCTION__);
+#else
+#define DEBUG_MSG_STATES
+#endif
+
 int main(int argc, char *argv[]) {
    // Check arguments
    if (argc <= 1) {
@@ -39,7 +45,7 @@ int main(int argc, char *argv[]) {
    cfg.dyn = NULL;
    
    // Begin parsing
-   init(&cfg);
+   in_static(&cfg);
    
    // Close file
    fclose(cfg.fhandle);
@@ -380,105 +386,160 @@ void next_dynamic_section(struct cfg_t* cfg) {
    return;
 }
 
-void init(struct cfg_t* cfg) {
+////////////////////////////////////////////////////////////////////////
+// Begin of the state functions ////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+
+void in_static(struct cfg_t* cfg) {
    // Read one character from the file (success if EOF)
    char character;
    read_character_suc(cfg, &character);
    
-   #ifdef DEBUG
-   printf("%c: ", character);
-   #endif
+   DEBUG_MSG_STATES
    
    // Test the character
    if (character == '[') {
-      #ifdef DEBUG
-      printf("init und [\n");
-      #endif
-      
-      have_bracket(cfg);
+      have_opening_bracket(cfg);
    }
    else {
-      #ifdef DEBUG
-      printf("init und kein [\n");
-      #endif
-      
       // Character is static
       write_static(cfg, character);
       
-      init(cfg);
+      in_static(cfg);
    }
       
    return;
 }
 
-void have_bracket(struct cfg_t* cfg) {
+void have_opening_bracket(struct cfg_t* cfg) {
    // Read one character from the file (success if EOF)
    char character;
    read_character_suc(cfg, &character)
    
-   #ifdef DEBUG
-   printf("%c: ", character);
-   #endif
+   DEBUG_MSG_STATES
    
    // Test the character
    if (character == '[') {
-      #ifdef DEBUG
-      printf("have_bracket und [\n");
-      #endif
-      
       // We have found a new dynamic part
       next_dynamic_section(cfg);
       
-      in_alternative(cfg);
+      first_in_dynamic(cfg);
    }
    else {
-      #ifdef DEBUG
-      printf("have_bracket und kein [\n");
-      #endif
-      
       // Characters '[' and character are static
       write_static(cfg, '[');
       write_static(cfg, character);
       
-      init(cfg);
+      in_static(cfg);
    }  
    
    return;
 }
 
-void in_alternative(struct cfg_t* cfg) {
+void first_in_dynamic(struct cfg_t* cfg) {
    // Read one character from the file (Error if EOF)
    char character;
    read_character_err(cfg, &character, "Unmatched [[");
    
-   #ifdef DEBUG
-   printf("%c: ", character);
-   #endif
+   DEBUG_MSG_STATES
    
    // Test the character
-   if (character == '|') {
-      #ifdef DEBUG
-      printf("in_alternative und |\n");
-      #endif
-      
-      have_delimiter(cfg);
-   }
-   else if (character == ']') {
-      #ifdef DEBUG
-      printf("in_alternative und ]\n");
-      #endif
-      
-      have_end(cfg);
-   }
-   else {
-      #ifdef DEBUG
-      printf("in_alternative und kein | oder ]\n");
-      #endif
-      
+   if (character == '(') {
+      have_opening_paren(cfg);
+   } else {
       // Character is dynamic
       write_dynamic(cfg, character);
       
-      in_alternative(cfg);
+      in_dynamic(cfg);      
+   }
+   
+   return;
+}
+
+void have_opening_paren(struct cfg_t* cfg) {
+   // Read one character from the file (Error if EOF)
+   char character;
+   read_character_err(cfg, &character, "Unmatched [[");
+   
+   DEBUG_MSG_STATES
+   
+   // Test the character
+   if (character == '(') {
+      // TODO
+      
+      in_tag(cfg);
+   } else {
+      // Character '(' was dynamic
+      write_dynamic(cfg, '(');
+      // Character character is dynamic
+      write_dynamic(cfg, character);
+      
+      in_dynamic(cfg);      
+   }
+   
+   return;
+}
+
+void in_tag(struct cfg_t* cfg) {
+   // Read one character from the file (Error if EOF)
+   char character;
+   read_character_err(cfg, &character, "Unmatched (( and therefore unmatched [[, as well");
+   
+   DEBUG_MSG_STATES
+   
+   // Test the character
+   if (character == ')') {
+      have_closing_paren(cfg);
+   } else {
+      // TODO
+      
+      in_tag(cfg);      
+   }
+   
+   return;
+}
+
+void have_closing_paren(struct cfg_t* cfg) {
+   // Read one character from the file (Error if EOF)
+   char character;
+   read_character_err(cfg, &character, "Unmatched (( and therefore umatched [[, as well");
+   
+   DEBUG_MSG_STATES
+   
+   // Test the character
+   if (character == ')') {
+      in_dynamic(cfg);
+   } else {
+      // Character ')' was part of the tag
+      // TODO
+      // Character character is part of the tag
+      // TODO
+      
+      in_tag(cfg);      
+   }
+   
+   return;
+}
+
+void in_dynamic(struct cfg_t* cfg) {
+   // Read one character from the file (Error if EOF)
+   char character;
+   read_character_err(cfg, &character, "Unmatched [[");
+   
+   DEBUG_MSG_STATES
+   
+   // Test the character
+   if (character == '|') {
+      have_delimiter(cfg);
+   }
+   else if (character == ']') {
+     have_closing_bracket(cfg);
+   }
+   else {
+      // Character is dynamic
+      write_dynamic(cfg, character);
+      
+      in_dynamic(cfg);
    }
    
    return;
@@ -490,68 +551,48 @@ void have_delimiter(struct cfg_t* cfg) {
    char character;
    read_character_err(cfg, &character, "Unmatched [[");
    
-   #ifdef DEBUG
-   printf("%c: ", character);
-   #endif
+   DEBUG_MSG_STATES
    
    // Test the character
    if (character == '|') {
-      #ifdef DEBUG
-      printf("have_delimiter und |\n");
-      #endif
-      
       // Next alternative
       next_dynamic_alternative(cfg);
       
-      in_alternative(cfg);
+      in_dynamic(cfg);
    }
    else {
-      #ifdef DEBUG
-      printf("have_delimiter und kein |\n");
-      #endif
-      
       // Character '|' was normal text 
       write_dynamic(cfg, '|');
       // Character character is dynamic
       write_dynamic(cfg, character);
       
-      in_alternative(cfg);
+      in_dynamic(cfg);
    }  
    
    return;
 }
 
-void have_end(struct cfg_t* cfg) {
+void have_closing_bracket(struct cfg_t* cfg) {
    // Read one character from the file (Error if EOF)
    char character;
    read_character_err(cfg, &character, "Unmatched ]]");
    
-   #ifdef DEBUG
-   printf("%c: ", character);
-   #endif
+   DEBUG_MSG_STATES
    
    // Test the character
    if (character == ']') {
-      #ifdef DEBUG
-      printf("have_end und ]\n");
-      #endif
-      
       // New static section
       next_static_section(cfg);
       
-      init(cfg);
+      in_static(cfg);
    }
    else {
-      #ifdef DEBUG
-      printf("have_end und kein ]\n");
-      #endif
-      
       // Character ']' was normal text
       write_dynamic(cfg, ']');
       // Character character is dynamic
       write_dynamic(cfg, character);
       
-      in_alternative(cfg);
+      in_dynamic(cfg);
    }  
    
    return;
