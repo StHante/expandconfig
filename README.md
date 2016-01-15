@@ -74,14 +74,14 @@ A file that can be parsed with `expanconfig` can be described in
 the following way:
 
     "static part"  [[ (( "tag name" )) "dynamic part" ]]  "static part"
-                   |__________________________________________________|
+                   \__________________________________________________/
                                              |
                            can be repeated as often as you want*
 
 where "dynamic part" consists of
 
     "alternative" || "alternative"
-                  |______________|
+                  \______________/
                          |
           can be repeated as often as you want*
 
@@ -96,8 +96,8 @@ text you want except these few special rules:
 
 While (except for these rules) every part can contain even the otherwise
 special strings `[[`, `]]`, `||`, `((` and `))`, I stronly discourage
-you to avoid them, because it is rather error-prone because
-`expandconfig` may not agree with you about what it should do.
+you to use them, because it is rather error-prone.
+Otherwise `expandconfig` may not agree with you on what it should do.
 
 The asterisk on the comment that something can be repeated as often as
 you want is due to the fact that expandconfig will not create any
