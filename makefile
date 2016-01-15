@@ -22,7 +22,7 @@ cleanup: clean
 test: expandconfig
 	./expandconfig test/test.cfg
 	@cat test/test.cfg.* > test/test_result
-	@if diff test/test_result test/test_sample_result > /dev/null; then echo "Test passed"; else echo"Test failed"; fi
+	@if diff test/test_result test/test_sample_result > /dev/null; then echo "Test passed"; else echo "Test failed"; fi
 
 
 
