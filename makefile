@@ -1,7 +1,7 @@
 .PHONY: default test
 
 CFLAGS = -g -Wall -Wextra
-CFLAGS := $(CFLAGS) -DDEBUG
+#CFLAGS := $(CFLAGS) -DDEBUG
 LFLAGS =
 
 default: expandconfig

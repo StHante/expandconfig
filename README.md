@@ -104,11 +104,16 @@ you want is due to the fact that expandconfig will not create any
 files if your input file has more than `9999999 = 1e7 - 1`
 combinatorial possibilities.
 
+## Building
+Building was tested only on Linux. You need `make`, `gcc`. For
+building the project type `make`, for running the test type `make test`,
+which will most likely only tell you that the test was passed.
+
 ## Bugs?
 Everything works as intended at the moment.
 
 ## Future improvements?
- - Fruther improving the quality of the code.
+ - Further improving the quality of the code.
  - Adding (better) error handling.
- - Additionaly features.
+ - Additional features.
 
