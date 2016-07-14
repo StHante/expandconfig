@@ -74,6 +74,9 @@ A file that can be parsed with `expanconfig` can be described in
 the following way:
 
     "static part"  [[ (( "tag name" )) "dynamic part" ]]  "static part"
+                      \______________/
+                             |
+                          optional
                    \__________________________________________________/
                                              |
                            can be repeated as often as you want*
