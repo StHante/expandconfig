@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
 
    // Create new cfg object
    struct cfg_t cfg;
-   
+
    // Try to open file
    cfg.fhandle = fopen(argv[argc-1],"r");
    if (cfg.fhandle == NULL) {
@@ -27,10 +27,10 @@ int main(int argc, char *argv[]) {
       printf("ERROR: Could not open file %s\n",argv[argc-1]);
       exit(1);
    }
-   
+
    // Give name
    cfg.name = argv[argc-1];
-   
+
    // Initialize
    cfg.stat_no = 1;
    cfg.stat_no_allocd = 4;
@@ -50,13 +50,13 @@ int main(int argc, char *argv[]) {
    cfg.tag = NULL;
    cfg.tag_len = NULL;
    cfg.tag_len_allocd = NULL;
-   
+
    // Begin parsing
    in_static(&cfg);
-   
+
    // Close file
    fclose(cfg.fhandle);
-   
+
    #ifdef DEBUG
    // Print
    int i, j;
@@ -83,13 +83,13 @@ int main(int argc, char *argv[]) {
       }
    }
    #endif
-   
+
    // Write all different files
    write_dyn_files(&cfg);
-   
+
    // Free allocated space
    cleanup(&cfg);
-   
+
    return 0;
 }
 
@@ -104,13 +104,13 @@ void write_dyn_files(struct cfg_t* cfg) {
    size_t c;
    FILE* outfile;
    char* outname;
-   
+
    // Calculate reference array
    calculate_reference_array(cfg);
-   
+
    // Check if the number of alternatives in dynamic parts with the same tag is consistent
    check_tag_alt_no(cfg);
-   
+
    #ifdef DEBUG
    printf("reference = ");
    for (i = 0; i < cfg->dyn_no; i++) printf("%d ",cfg->reference[i]);
@@ -121,7 +121,7 @@ void write_dyn_files(struct cfg_t* cfg) {
    printf("different_tag_no = %d\n",cfg->different_tag_no);
    printf("dyn_no = %d\n",cfg->dyn_no);
    #endif
-   
+
    // Find out how many possibilities for different alternatives there are
    int possibilities = 1;
    for (i=0; i<cfg->dyn_no; i++) {
@@ -130,50 +130,51 @@ void write_dyn_files(struct cfg_t* cfg) {
          possibilities = possibilities * cfg->dyn_alt_no[i];
       }
    }
-   
+
    // Create array that holds the index of the alternatives
    int* indices = malloc(cfg->different_tag_no*sizeof(int));
    for (i=0; i<cfg->different_tag_no; i++) indices[i] = 0;
-   
+
    // Check for too many possibilities >= 10^7
    if (possibilities > 999999) {
       printf("Error: Possibilities exceed 10^7-1 = 9 999 999, aborting");
       exit(1);
    }
-   
+
    // Loop over all possible files
    for (i=0; i<possibilities; i++) {
-      
+
       #ifdef DEBUG
       // Print the indices
       printf("indices:");
       for (j=0; j<cfg->different_tag_no; j++) printf("  %d", indices[j]);
       printf("\n");
       #endif
-      
+
       // Open output file
                        //                  "."  #  "." exp  \0
       outname = malloc((strlen(cfg->name) + 1 + 7 + 1 + 3 + 1)*sizeof(char));
       sprintf(outname, "%s.%07d.exp", cfg->name, i);
       outfile = fopen(outname,"w+");
       free(outname);
-      
+
       // Print the files
       for (j=0; j<cfg->stat_no; j++) {
          // Print static part
          for (c=0; c<cfg->stat_len[j]; c++)
             fprintf(outfile, "%c", cfg->stat[j][c]);
-         
+
          // Print dynamic part (if present)
          if (j < cfg->dyn_no) {
-            for (c=0; c<cfg->dyn_len[j][indices[cfg->reference_normalized[j]]]; c++)
-               fprintf(outfile, "%c", cfg->dyn[j][indices[cfg->reference_normalized[j]]][c]);
+            for (c=0; c<cfg->dyn_len[j][indices[cfg->reference_normalized[j]]]; c++) {
+               putc(cfg->dyn[j][indices[cfg->reference_normalized[j]]][c], outfile);
+            }
          }
       }
-      
+
       // Close file
       fclose(outfile);
-      
+
       // Increase the index
       overtake = 1;
       for (j=0; j<cfg->dyn_no; j++) {
@@ -193,10 +194,10 @@ void write_dyn_files(struct cfg_t* cfg) {
          }
       }
    }
-   
+
    // Free indices
    free(indices);
-   
+
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -206,7 +207,7 @@ void write_dyn_files(struct cfg_t* cfg) {
 void cleanup(struct cfg_t* cfg) {
    // Free all allocated space
    int i, j;
-   
+
    // Static text variables
    for (i=0; i<cfg->stat_no; i++) {
       free(cfg->stat[i]);
@@ -214,7 +215,7 @@ void cleanup(struct cfg_t* cfg) {
    free(cfg->stat);
    free(cfg->stat_len);
    free(cfg->stat_len_allocd);
-      
+
    // Dynamic text variables
    for (i=0; i<cfg->dyn_no; i++) {
       for (j=0; j<cfg->dyn_alt_no[i]; j++) {
@@ -229,7 +230,7 @@ void cleanup(struct cfg_t* cfg) {
    free(cfg->dyn_len_allocd);
    free(cfg->dyn_alt_no);
    free(cfg->dyn_alt_no_allocd);
-   
+
    // Tag variables
    for (i=0; i<cfg->dyn_no; i++) {
       free(cfg->tag[i]);
@@ -237,7 +238,7 @@ void cleanup(struct cfg_t* cfg) {
    free(cfg->tag);
    free(cfg->tag_len);
    free(cfg->tag_len_allocd);
-   
+
    // Variables for reference
    free(cfg->reference);
    free(cfg->reference_normalized);
@@ -262,7 +263,7 @@ void check_dyn_len(struct cfg_t* cfg) {
          (char*) realloc(cfg->dyn[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1],
                          cfg->dyn_len_allocd[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]*sizeof(char));
    }
-   
+
    return;
 }
 
@@ -286,7 +287,7 @@ void check_dyn_alt_no(struct cfg_t* cfg) {
          (size_t*) realloc(cfg->dyn_len_allocd[cfg->dyn_no-1],
                            cfg->dyn_alt_no_allocd[cfg->dyn_no-1]*sizeof(size_t));
    }
-   
+
    return;
 }
 
@@ -325,7 +326,7 @@ void check_dyn_no(struct cfg_t* cfg) {
          (size_t*) realloc(cfg->tag_len_allocd,
                            cfg->dyn_no_allocd*sizeof(size_t));
    }
-   
+
    return;
 }
 
@@ -343,17 +344,17 @@ void alloc_next_dyn_alt(struct cfg_t* cfg) {
    cfg->dyn_alt_no_allocd[cfg->dyn_no-1] = 4;
    cfg->dyn[cfg->dyn_no-1] =
       (char**) malloc(cfg->dyn_alt_no_allocd[cfg->dyn_no-1]*sizeof(char*));
-   cfg->dyn_len[cfg->dyn_no-1] = 
+   cfg->dyn_len[cfg->dyn_no-1] =
       (size_t*) malloc(cfg->dyn_alt_no_allocd[cfg->dyn_no-1]*sizeof(size_t));
-   cfg->dyn_len_allocd[cfg->dyn_no-1] = 
+   cfg->dyn_len_allocd[cfg->dyn_no-1] =
       (size_t*) malloc(cfg->dyn_alt_no_allocd[cfg->dyn_no-1]*sizeof(size_t));
-   
+
    // Tags
    cfg->tag_len[cfg->dyn_no-1] = 0;
    cfg->tag_len_allocd[cfg->dyn_no-1] = 8;
    cfg->tag[cfg->dyn_no-1] =
       (char*) malloc(cfg->tag_len_allocd[cfg->dyn_no-1]*sizeof(char));
-      
+
    return;
 }
 
@@ -367,7 +368,7 @@ void check_tag_len(struct cfg_t* cfg) {
          (char*) realloc(cfg->tag[cfg->dyn_no-1],
                          cfg->tag_len_allocd[cfg->dyn_no-1]*sizeof(char));
    }
-   
+
    return;
 }
 
@@ -381,7 +382,7 @@ void check_stat_len(struct cfg_t* cfg) {
          (char*) realloc(cfg->stat[cfg->stat_no-1],
                          cfg->stat_len_allocd[cfg->stat_no-1]*sizeof(char));
    }
-   
+
    return;
 }
 
@@ -394,19 +395,19 @@ void check_stat_no(struct cfg_t* cfg) {
       cfg->stat_len = (size_t*) realloc(cfg->stat_len, cfg->stat_no_allocd*sizeof(size_t));
       cfg->stat_len_allocd = (size_t*) realloc(cfg->stat_len_allocd, cfg->stat_no_allocd*sizeof(size_t));
    }
-   
+
    return;
 }
 
 void alloc_next_stat(struct cfg_t* cfg) {
    cfg->stat_len[cfg->stat_no-1] = 0;
    cfg->stat_len_allocd[cfg->stat_no-1] = 16;
-   cfg->stat[cfg->stat_no-1] = (char*) malloc(cfg->stat_len_allocd[cfg->stat_no-1]*sizeof(char));   
+   cfg->stat[cfg->stat_no-1] = (char*) malloc(cfg->stat_len_allocd[cfg->stat_no-1]*sizeof(char));
    return;
 }
 
 int read_character(struct cfg_t* cfg, char* character) {
-   return fscanf(cfg->fhandle, "%c", character); 
+   return fscanf(cfg->fhandle, "%c", character);
 }
 
 void read_character_err(struct cfg_t* cfg, char* character, char* err_msg) {
@@ -421,26 +422,26 @@ void read_character_err(struct cfg_t* cfg, char* character, char* err_msg) {
 #define read_character_suc(CFG, CHARACTER) \
 if (read_character(CFG, CHARACTER) < 1) {  \
    return;                                  \
-}                                        
+}
 
 void write_static(struct cfg_t* cfg, char character) {
    // Check length of buffer and reallocate if it's too small
    check_stat_len(cfg);
    // Save character
    cfg->stat[cfg->stat_no-1][cfg->stat_len[cfg->stat_no-1]] = character;
-   cfg->stat_len[cfg->stat_no-1]++;  
-   
+   cfg->stat_len[cfg->stat_no-1]++;
+
    return;
 }
 
 void write_dynamic(struct cfg_t* cfg, char character) {
-   // Check length of buffer and reallocate if it's too small   
+   // Check length of buffer and reallocate if it's too small
    check_dyn_len(cfg);
    // Save character
    cfg->dyn_len[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]++;
    cfg->dyn[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1][cfg->dyn_len[cfg->dyn_no-1][cfg->dyn_alt_no[cfg->dyn_no-1]-1]-1]
       = character;
-   
+
    return;
 }
 
@@ -450,7 +451,7 @@ void write_tag(struct cfg_t* cfg, char character) {
    // Save character
    cfg->tag[cfg->dyn_no-1][cfg->tag_len[cfg->dyn_no-1]] = character;
    cfg->tag_len[cfg->dyn_no-1]++;
-   
+
    return;
 }
 
@@ -460,30 +461,30 @@ void next_static_section(struct cfg_t* cfg) {
    cfg->stat_no ++;
    // Allocate buffer
    alloc_next_stat(cfg);
-}      
+}
 
 void next_dynamic_alternative(struct cfg_t* cfg) {
-   // Check lenght of buffer and reallocate if it's too small   
+   // Check lenght of buffer and reallocate if it's too small
    check_dyn_alt_no(cfg);
    cfg->dyn_alt_no[cfg->dyn_no-1]++;
-   // Allocate buffer   
+   // Allocate buffer
    alloc_next_dyn(cfg);
-   
+
    return;
 }
 
 void next_dynamic_section(struct cfg_t* cfg) {
-   // Check lenght of buffer and reallocate if it's too small   
-   check_dyn_no(cfg); 
+   // Check lenght of buffer and reallocate if it's too small
+   check_dyn_no(cfg);
    cfg->dyn_no++;
    // Allocate buffer
    alloc_next_dyn_alt(cfg);
-   // Check lenght of buffer and reallocate if it's too small   
+   // Check lenght of buffer and reallocate if it's too small
    check_dyn_alt_no(cfg);
    cfg->dyn_alt_no[cfg->dyn_no-1]++;
    // Allocate buffer
    alloc_next_dyn(cfg);
-   
+
    return;
 }
 
@@ -513,21 +514,21 @@ void calculate_reference_array(struct cfg_t* cfg) {
    // Allocate space for reference array
    cfg->reference = (int*) malloc(cfg->dyn_no*sizeof(int));
    cfg->reference_normalized = (int*) malloc(cfg->dyn_no*sizeof(int));
-   
+
    // Count numbers that don't appear anymore
    int removed_no = 0;
-   
+
    // Loop over all tags decreasing
    int i, j, remove_i;
    for (i = cfg->dyn_no-1; i > 0; i--) {
       // Default:
       cfg->reference[i] = i;
       cfg->reference_normalized[i] = i;
-      
+
       // We need to know if an index was overwritten
       remove_i = 0;
       // Loop over all smaller indices, thus finding the foremost equal tag
-      for (j = i; j >= 0; j--) {
+      for (j = i-1; j >= 0; j--) {
          if (compare_tags(cfg, i, j)) {
             // Tags with indices i and j are the same and j<=i
             cfg->reference[i] = j;
@@ -535,28 +536,28 @@ void calculate_reference_array(struct cfg_t* cfg) {
             remove_i = 1;
          }
       }
-      
+
       // If index was overwritten,
       if (remove_i) {
          // Increase number of removed indices
          removed_no++;
-         
-         
+
+
          // Decrease all following indices greater than i for the normalized reference
          for (j = i+1; j < cfg->dyn_no; j++) {
             if (cfg->reference_normalized[j]>i) cfg->reference_normalized[j]--;
          }
-         
+
       }
    }
    // The first index has to stay
    cfg->reference[0] = 0;
    cfg->reference_normalized[0] = 0;
-   
-   
+
+
    // Calculate number of different tags
    cfg->different_tag_no = cfg->dyn_no - removed_no;
-   
+
    return;
 }
 
@@ -574,7 +575,7 @@ void check_tag_alt_no(struct cfg_t* cfg) {
          }
       }
    }
-   
+
    return;
 }
 
@@ -586,9 +587,9 @@ void in_static(struct cfg_t* cfg) {
    // Read one character from the file (success if EOF)
    char character;
    read_character_suc(cfg, &character);
-   
+
    DEBUG_MSG_STATES
-   
+
    // Test the character
    if (character == '[') {
       have_opening_bracket(cfg);
@@ -596,10 +597,10 @@ void in_static(struct cfg_t* cfg) {
    else {
       // Character is static
       write_static(cfg, character);
-      
+
       in_static(cfg);
    }
-      
+
    return;
 }
 
@@ -607,24 +608,24 @@ void have_opening_bracket(struct cfg_t* cfg) {
    // Read one character from the file (success if EOF)
    char character;
    read_character_suc(cfg, &character)
-   
+
    DEBUG_MSG_STATES
-   
+
    // Test the character
    if (character == '[') {
       // We have found a new dynamic part
       next_dynamic_section(cfg);
-      
+
       first_in_dynamic(cfg);
    }
    else {
       // Characters '[' and character are static
       write_static(cfg, '[');
       write_static(cfg, character);
-      
+
       in_static(cfg);
-   }  
-   
+   }
+
    return;
 }
 
@@ -632,19 +633,19 @@ void first_in_dynamic(struct cfg_t* cfg) {
    // Read one character from the file (Error if EOF)
    char character;
    read_character_err(cfg, &character, "Unmatched [[");
-   
+
    DEBUG_MSG_STATES
-   
+
    // Test the character
    if (character == '(') {
       have_opening_paren(cfg);
    } else {
       // Character is dynamic
       write_dynamic(cfg, character);
-      
-      in_dynamic(cfg);      
+
+      in_dynamic(cfg);
    }
-   
+
    return;
 }
 
@@ -652,23 +653,23 @@ void have_opening_paren(struct cfg_t* cfg) {
    // Read one character from the file (Error if EOF)
    char character;
    read_character_err(cfg, &character, "Unmatched [[");
-   
+
    DEBUG_MSG_STATES
-   
+
    // Test the character
    if (character == '(') {
       // TODO
-      
+
       in_tag(cfg);
    } else {
       // Character '(' was dynamic
       write_dynamic(cfg, '(');
       // Character character is dynamic
       write_dynamic(cfg, character);
-      
-      in_dynamic(cfg);      
+
+      in_dynamic(cfg);
    }
-   
+
    return;
 }
 
@@ -676,19 +677,19 @@ void in_tag(struct cfg_t* cfg) {
    // Read one character from the file (Error if EOF)
    char character;
    read_character_err(cfg, &character, "Unmatched (( and therefore unmatched [[, as well");
-   
+
    DEBUG_MSG_STATES
-   
+
    // Test the character
    if (character == ')') {
       have_closing_paren(cfg);
    } else {
       // Character is part of the tag
       write_tag(cfg, character);
-      
-      in_tag(cfg);      
+
+      in_tag(cfg);
    }
-   
+
    return;
 }
 
@@ -696,9 +697,9 @@ void have_closing_paren(struct cfg_t* cfg) {
    // Read one character from the file (Error if EOF)
    char character;
    read_character_err(cfg, &character, "Unmatched (( and therefore umatched [[, as well");
-   
+
    DEBUG_MSG_STATES
-   
+
    // Test the character
    if (character == ')') {
       in_dynamic(cfg);
@@ -707,10 +708,10 @@ void have_closing_paren(struct cfg_t* cfg) {
       write_tag(cfg, ')');
       // Character character is part of the tag
       write_tag(cfg, character);
-      
-      in_tag(cfg);      
+
+      in_tag(cfg);
    }
-   
+
    return;
 }
 
@@ -718,9 +719,9 @@ void in_dynamic(struct cfg_t* cfg) {
    // Read one character from the file (Error if EOF)
    char character;
    read_character_err(cfg, &character, "Unmatched [[");
-   
+
    DEBUG_MSG_STATES
-   
+
    // Test the character
    if (character == '|') {
       have_delimiter(cfg);
@@ -731,10 +732,10 @@ void in_dynamic(struct cfg_t* cfg) {
    else {
       // Character is dynamic
       write_dynamic(cfg, character);
-      
+
       in_dynamic(cfg);
    }
-   
+
    return;
 }
 
@@ -743,25 +744,25 @@ void have_delimiter(struct cfg_t* cfg) {
    // Read one character from the file (Error if EOF)
    char character;
    read_character_err(cfg, &character, "Unmatched [[");
-   
+
    DEBUG_MSG_STATES
-   
+
    // Test the character
    if (character == '|') {
       // Next alternative
       next_dynamic_alternative(cfg);
-      
+
       in_dynamic(cfg);
    }
    else {
-      // Character '|' was normal text 
+      // Character '|' was normal text
       write_dynamic(cfg, '|');
       // Character character is dynamic
       write_dynamic(cfg, character);
-      
+
       in_dynamic(cfg);
-   }  
-   
+   }
+
    return;
 }
 
@@ -769,14 +770,14 @@ void have_closing_bracket(struct cfg_t* cfg) {
    // Read one character from the file (Error if EOF)
    char character;
    read_character_err(cfg, &character, "Unmatched ]]");
-   
+
    DEBUG_MSG_STATES
-   
+
    // Test the character
    if (character == ']') {
       // New static section
       next_static_section(cfg);
-      
+
       in_static(cfg);
    }
    else {
@@ -784,9 +785,9 @@ void have_closing_bracket(struct cfg_t* cfg) {
       write_dynamic(cfg, ']');
       // Character character is dynamic
       write_dynamic(cfg, character);
-      
+
       in_dynamic(cfg);
-   }  
-   
+   }
+
    return;
 }
